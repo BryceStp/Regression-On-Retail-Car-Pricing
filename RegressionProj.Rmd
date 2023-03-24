@@ -1,0 +1,61 @@
+```{r}
+cars=read.table('cars04.csv',header=TRUE,sep=",")
+```
+- We don't care about brand or car type for this analysis, so we wont include them in the model.
+```{r}
+SuggestedRetailPrice=cars[,3]
+DealerCost=cars[,4]
+EngineSize=cars[,5]
+Cylinders=cars[,6]
+Horsepower=cars[,7]
+CityMPG=cars[,8]
+HighwayMPG=cars[,9]
+Weight=cars[,10]
+WheelBase=cars[,11]
+Length=cars[,12]
+Width=cars[,13]
+```
+
+```{r}
+lm.fit1=lm(SuggestedRetailPrice~DealerCost+EngineSize+Cylinders+Horsepower+CityMPG+HighwayMPG+Weight+WheelBase+Length+Width)
+summary(lm.fit1)
+```
+- At alpha=10% we fail to reject the null for EngineSize, CityMPG, and Length.
+```{r}
+round(cor(cbind(DealerCost,EngineSize,Cylinders,Horsepower,CityMPG,HighwayMPG,Weight,WheelBase,Length,Width)),2)
+```
+- From our correlation Matrix we can see that every predictor shows signs of multicollinearity, so it would be inadvisable to trust our t tests and reject the aforementioned predictors.
+- Now we will take advantage of AIC to correct this problem.
+```{r}
+step(lm.fit1, direction='backward')
+```
+- Use the new AIC model
+```{r}
+lm.fit2=lm(SuggestedRetailPrice ~ DealerCost + Cylinders + Horsepower + HighwayMPG + Weight + Width)
+summary(lm.fit2)
+```
+- Now we have our optimal model, thanks to AIC.
+- Lets check out the confidence interval next.
+```{r}
+confint(lm.fit2,level=0.95)
+```
+- Lets now check the standard error (of beta hat) with bootstrapping.
+```{r}
+res=lm.fit2$resid
+beta.hat.boot=rep(0,1000)
+for(i in 1:1000){res.star=sample(res,234,replace=TRUE)
+Y.star=lm.fit2$fit +res.star
+lmfit.star=lm(Y.star~ DealerCost + Cylinders + Horsepower + HighwayMPG + Weight + Width)
+beta.hat.boot[i]=lmfit.star$coef[3]}
+st.dev=sqrt(var(beta.hat.boot))
+st.dev
+```
+- Produces a value roughly the same as without bootstrapping (~51.95).
+```{r}
+quantile(beta.hat.boot, c(0.025,0.975))
+```
+- So both of our confidence intervals are very close together, with the t-dist. (bootstrapped) version having slightly larger values.
+```{r}
+hist(beta.hat.boot)
+```
+- Roughly symmetric histogram, with most of the values falling inbetween 150 and 250.
