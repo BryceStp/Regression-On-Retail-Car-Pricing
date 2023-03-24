@@ -1,35 +1,72 @@
 ```{r}
 cars=read.table('cars04.csv',header=TRUE,sep=",")
-```
-- We don't care about brand or car type for this analysis, so we wont include them in the model.
-```{r}
-SuggestedRetailPrice=cars[,3]
-DealerCost=cars[,4]
-EngineSize=cars[,5]
-Cylinders=cars[,6]
-Horsepower=cars[,7]
-CityMPG=cars[,8]
-HighwayMPG=cars[,9]
-Weight=cars[,10]
-WheelBase=cars[,11]
-Length=cars[,12]
-Width=cars[,13]
+summary(cars)
 ```
 
 ```{r}
-lm.fit1=lm(SuggestedRetailPrice~DealerCost+EngineSize+Cylinders+Horsepower+CityMPG+HighwayMPG+Weight+WheelBase+Length+Width)
-summary(lm.fit1)
+pairs(cars[,4:12])
+fit.lm1=lm(SuggestedRetailPrice~DealerCost+EngineSize+Cylinders+Horsepower+CityMPG+HighwayMPG+Weight+WheelBase+Length+Width)
+summary(fit.lm1)
 ```
 - At alpha=10% we fail to reject the null for EngineSize, CityMPG, and Length.
+- DealerCost,Weight, and WheelBase all appear to be decent predictors of the SuggestedRetailPrice.
 ```{r}
 round(cor(cbind(DealerCost,EngineSize,Cylinders,Horsepower,CityMPG,HighwayMPG,Weight,WheelBase,Length,Width)),2)
 ```
 - From our correlation Matrix we can see that every predictor shows signs of multicollinearity, so it would be inadvisable to trust our t tests and reject the aforementioned predictors.
-- Now we will take advantage of AIC to correct this problem.
+- Lets make a new model without AIC for now and check that out later.
+```{r}
+ReducedModel=lm(SuggestedRetailPrice~DealerCost+Cylinders+Horsepower+HighwayMPG+Weight+WheelBase+Width)
+anova(ReducedModel,lm.fit1)
+```
+
+```{r}
+1-pf(0.6,3,223)
+```
+- Lets take a look at some residual graphs and see whats happening visually.
+```{r}
+res1=ReducedModel$resid
+Yhat=ReducedModel$fit
+plot(Yhat,cars$SuggestedRetailPrice,main="Plot of y against y hat")
+```
+- Suggests that the simple linear model is already a good fit.
+```{r}
+par(mfrow=c(4,2))
+qqnorm(res1)
+plot(cars$DealerCost,res1, main="Plot of residuals against DealerCost")
+plot(cars$Cylinders,res1, main="Plot of residuals against Cylinders")
+plot(cars$Horsepower,res1, main="Plot of residuals against Horsepower")
+plot(cars$HighwayMPG,res1, main="Plot of residuals against HighwayMPG")
+plot(cars$Weight,res1, main="Plot of residuals against Weight")
+plot(cars$WheelBase,res1, main="Plot of residuals against WheelBase")
+plot(cars$Width,res1, main="Plot of residuals against Width")
+```
+- There are some model violations occuring here and we could probably correct them with a log transformation (or at least make them "nicer").
+```{r}
+LogReducedModel=lm(log(SuggestedRetailPrice)~log(DealerCost)+log(Cylinders)+log(Horsepower)+log(HighwayMPG)+
+log(Weight)+log(WheelBase)+log(Width))
+res2=LogReducedModel$resid
+Yhat2=LogReducedModel$fit
+```
+
+```{r}
+par(mfrow=c(4,2))
+qqnorm(res2)
+plot(cars$DealerCost,res2, main="Plot of log residuals against log DealerCost")
+plot(cars$Cylinders,res2, main="Plot of log residuals against log Cylinders")
+plot(cars$Horsepower,res2, main="Plot of log residuals against log Horsepower")
+plot(cars$HighwayMPG,res2, main="Plot of log residuals against log HighwayMPG")
+plot(cars$Weight,res2, main="Plot of log residuals against log Weight")
+plot(cars$WheelBase,res2, main="Plot of log residuals against log WheelBase")
+plot(cars$Width,res2, main="Plot of log residuals against log Width")
+```
+- Applying a log transformation helped quite a bit.
+- Now we will take advantage of AIC to correct this problem and see if it matches our simple solution.
 ```{r}
 step(lm.fit1, direction='backward')
 ```
-- Use the new AIC model
+- AIC cut out wheelbase, while we didn't for our model from earlier. 
+- Use the new AIC model.
 ```{r}
 lm.fit2=lm(SuggestedRetailPrice ~ DealerCost + Cylinders + Horsepower + HighwayMPG + Weight + Width)
 summary(lm.fit2)
